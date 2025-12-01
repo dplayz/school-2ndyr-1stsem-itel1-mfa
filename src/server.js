@@ -29,7 +29,7 @@ app.get("/style/main.css", function(req, res){
 // Serve Bootstrap CSS
 app.use('/dist/bootstrap/css', express.static(path.join(__dirname, '../node_modules/bootstrap/dist/css')));
 app.use('/dist/bootstrap/js', express.static(path.join(__dirname, '../node_modules/bootstrap/dist/js')));
-
+app.use('/dist/bootstrap-icons/fonts', express.static(path.join(__dirname, '../node_modules/bootstrap-icons/font/')));
 
 // Specify the directory where your EJS template files are located
 app.set('views', path.join(__dirname, 'views'));
@@ -37,7 +37,7 @@ app.set('views', path.join(__dirname, 'views'));
 
 // Define a route to render an EJS view
 app.get('/', (req, res) => {
-    const pageTitle = 'My EJS Page';
+    const pageTitle = 'Home';
     const data = {
         name: 'John Doe',
         items: ['Apple', 'Banana', 'Orange']
