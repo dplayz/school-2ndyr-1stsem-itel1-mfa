@@ -1,18 +1,22 @@
+require('dotenv').config();
 const express = require('express');
 const bodyParser = require("body-parser");
 const mysql = require("mysql2");
 let ejs = require('ejs');
 const path = require('path');
 
-/* Keep it for future purposes
-const msgdb = mysql.createConnection({
-host: "localhost",
-user: "root", // change if needed
-password: "passwd", // add your MySQL password
-database: "msgdb" // create this DB in MySQL
+// MySQL Server Authentication guides. Please acquire a .env from server.
+const db = mysql.createConnection({
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    port: process.env.DB_PORT,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_DATABASE,
+    ssl: {
+        rejectUnauthorized: false // Because I can't find the CA File to embed. Crazy hack indeed
+    }
 }).promise();
 
-*/
 
 // Create Express app
 const app = express();
