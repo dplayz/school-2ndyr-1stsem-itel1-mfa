@@ -67,28 +67,31 @@ app.use('/dist/bootstrap-icons/fonts', express.static(path.join(__dirname, '../n
 // Specify the directory where your EJS template files are located
 app.set('views', path.join(__dirname, 'views'));
 
-
-// Define a route to render an EJS view
-app.get('/', (req, res) => {
-    const pageTitle = 'Home';
-    const data = {
-        name: 'John Doe',
-        items: ['Apple', 'Banana', 'Orange']
-    };
-    
-    // First render the page content
-    res.render('index', { title: pageTitle, user: data }, (err, pageContent) => {
+// Helper function to pass authentication data to baseof template
+const renderPage = (req, res, viewName, pageTitle, pageData = {}) => {
+    res.render(viewName, { title: pageTitle, data: pageData }, (err, pageContent) => {
         if (err) {
             console.error(err);
             return res.status(500).send('Error rendering page');
         }
-        
-        // Then render the layout with the page content
         res.render('baseof', { 
             title: pageTitle, 
-            body: pageContent 
+            body: pageContent,
+            isAuthenticated: !!req.session.userId,
+            username: req.session.username
         });
     });
+};
+
+
+// Home page route. will show summary if authenticated, 
+// will show default home when not authenticated. 
+app.get('/', (req, res) => {
+    const pageTitle = 'Home';
+    const pageData = {
+        username: req.session.username
+    };
+    renderPage(req, res, 'index', pageTitle, pageData);
 });
 
 // Routes to render /login page
@@ -98,19 +101,7 @@ app.get('/login', isNotAuthenticated, (req, res) => {
         errorMessage: null,
         successMessage: null
     }
-    // First render the page content
-    res.render('login', { title: pageTitle, data: pageData}, (err, pageContent) => {
-        if (err) {
-            console.error(err);
-            return res.status(500).send('Error rendering page');
-        }
-        
-        // Then render the layout with the page content
-        res.render('baseof', { 
-            title: pageTitle, 
-            body: pageContent 
-        });
-    });
+    renderPage(req, res, 'login', pageTitle, pageData);
 });
 
 // Routes to render /register page
@@ -120,19 +111,7 @@ app.get('/register', isNotAuthenticated, (req, res) => {
         errorMessage: null,
         successMessage: null
     }
-    // First render the page content
-    res.render('register', { title: pageTitle, data: pageData}, (err, pageContent) => {
-        if (err) {
-            console.error(err);
-            return res.status(500).send('Error rendering page');
-        }
-        
-        // Then render the layout with the page content
-        res.render('baseof', { 
-            title: pageTitle, 
-            body: pageContent 
-        });
-    });
+    renderPage(req, res, 'register', pageTitle, pageData);
 });
 
 
@@ -155,16 +134,7 @@ app.post('/login', async (req, res) => {
 
         if (users.length === 0) {
             pageData.errorMessage = "Invalid username or password!";
-            return res.render('login', { title: pageTitle, data: pageData }, (err, pageContent) => {
-                if (err) {
-                    console.error(err);
-                    return res.status(500).send('Error rendering page');
-                }
-                res.render('baseof', { 
-                    title: pageTitle, 
-                    body: pageContent 
-                });
-            });
+            return renderPage(req, res, 'login', pageTitle, pageData);
         }
 
         // User found - store user info in session
@@ -172,21 +142,12 @@ app.post('/login', async (req, res) => {
         req.session.username = users[0].username;
         
         // Redirect to summary page
-        return res.redirect('/summary');
+        return res.redirect('/');
 
     } catch (err) {
         console.error("Database error:", err);
         pageData.errorMessage = "Database error!";
-        return res.render('login', { title: pageTitle, data: pageData }, (err, pageContent) => {
-            if (err) {
-                console.error(err);
-                return res.status(500).send('Error rendering page');
-            }
-            res.render('baseof', { 
-                title: pageTitle, 
-                body: pageContent 
-            });
-        });
+        return renderPage(req, res, 'login', pageTitle, pageData);
     }
 });
 
@@ -210,45 +171,18 @@ app.post('/register', async (req, res) => {
 
         pageData.successMessage = "User registered successfully!";
 
-        return res.render('register', { title: pageTitle, data: pageData }, (err, pageContent) => {
-            if (err) {
-                console.error(err);
-                return res.status(500).send('Error rendering page');
-            }
-            res.render('baseof', { 
-                title: pageTitle, 
-                body: pageContent 
-            });
-        });
+        return renderPage(req, res, 'register', pageTitle, pageData);
 
     } catch (err) {
         console.error("Database error:", err);
 
         if (err.code === "ER_DUP_ENTRY") {
             pageData.errorMessage = "Username or email is already registered!";
-            return res.render('register', { title: pageTitle, data: pageData }, (err, pageContent) => {
-                if (err) {
-                    console.error(err);
-                    return res.status(500).send('Error rendering page');
-                }
-                res.render('baseof', { 
-                    title: pageTitle, 
-                    body: pageContent 
-                });
-            });
+            return renderPage(req, res, 'register', pageTitle, pageData);
         }
 
         pageData.errorMessage = "Database error!";
-        return res.render('register', { title: pageTitle, data: pageData }, (err, pageContent) => {
-            if (err) {
-                console.error(err);
-                return res.status(500).send('Error rendering page');
-            }
-            res.render('baseof', { 
-                title: pageTitle, 
-                body: pageContent 
-            });
-        });
+        return renderPage(req, res, 'register', pageTitle, pageData);
     }
 });
 
@@ -260,16 +194,7 @@ app.get('/summary', isAuthenticated, (req, res) => {
         username: req.session.username
     };
     
-    res.render('summary', { title: pageTitle, data: pageData }, (err, pageContent) => {
-        if (err) {
-            console.error(err);
-            return res.status(500).send('Error rendering page');
-        }
-        res.render('baseof', { 
-            title: pageTitle, 
-            body: pageContent 
-        });
-    });
+    renderPage(req, res, 'summary', pageTitle, pageData);
 });
 
 // Logout route
