@@ -14,7 +14,7 @@
 </head>
 <body>
     <!-- Full-width Navigation (renders navbar on mobile, sidebar on desktop) -->
-    <%- include('partials/header', { activePage: 'home' }) %>
+    <%- include('partials/header', { activePage: 'home', isAuthenticated: locals.isAuthenticated || false, username: locals.username }) %>
 
     <!-- Main content area with responsive sidebar -->
     <div class="content-wrapper" style="margin-left: 0px;">
