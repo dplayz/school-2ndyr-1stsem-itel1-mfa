@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const bodyParser = require("body-parser");
+const cookieParser = require('cookie-parser');
+const session = require('express-session');
 const mysql = require("mysql2");
 let ejs = require('ejs');
 const path = require('path');
@@ -21,8 +23,35 @@ const db = mysql.createConnection({
 // Create Express app
 const app = express();
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(cookieParser());
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'your-secret-key',
+    resave: false,
+    saveUninitialized: false,
+    cookie: { 
+        secure: false, // Set to true if using HTTPS
+        maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+    }
+}));
 // Set EJS as the view engine
 app.set('view engine', 'ejs');
+
+
+// Middleware to check if user is authenticated
+const isAuthenticated = (req, res, next) => {
+    if (req.session.userId) {
+        return next();
+    }
+    res.redirect('/login');
+};
+
+// Middleware to check if user is NOT authenticated (for login/register pages)
+const isNotAuthenticated = (req, res, next) => {
+    if (!req.session.userId) {
+        return next();
+    }
+    res.redirect('/summary');
+};
 
 
 // Serve assets
@@ -63,7 +92,7 @@ app.get('/', (req, res) => {
 });
 
 // Routes to render /login page
-app.get('/login', (req, res) => {
+app.get('/login', isNotAuthenticated, (req, res) => {
     const pageTitle = 'Login';
     const pageData = {
         errorMessage: null,
@@ -85,7 +114,7 @@ app.get('/login', (req, res) => {
 });
 
 // Routes to render /register page
-app.get('/register', (req, res) => {
+app.get('/register', isNotAuthenticated, (req, res) => {
     const pageTitle = 'Register';
     const pageData = {
         errorMessage: null,
@@ -106,6 +135,60 @@ app.get('/register', (req, res) => {
     });
 });
 
+
+// POST route for login
+app.post('/login', async (req, res) => {
+    const { username, password } = req.body;
+
+    const pageTitle = 'Login';
+    const pageData = {
+        errorMessage: null,
+        successMessage: null
+    };
+
+    try {
+        // Query database for user with matching credentials
+        const [users] = await db.query(
+            `SELECT * FROM user WHERE username = ? AND password = ?`,
+            [username, password]
+        );
+
+        if (users.length === 0) {
+            pageData.errorMessage = "Invalid username or password!";
+            return res.render('login', { title: pageTitle, data: pageData }, (err, pageContent) => {
+                if (err) {
+                    console.error(err);
+                    return res.status(500).send('Error rendering page');
+                }
+                res.render('baseof', { 
+                    title: pageTitle, 
+                    body: pageContent 
+                });
+            });
+        }
+
+        // User found - store user info in session
+        req.session.userId = users[0].uid;
+        req.session.username = users[0].username;
+        
+        // Redirect to summary page
+        return res.redirect('/summary');
+
+    } catch (err) {
+        console.error("Database error:", err);
+        pageData.errorMessage = "Database error!";
+        return res.render('login', { title: pageTitle, data: pageData }, (err, pageContent) => {
+            if (err) {
+                console.error(err);
+                return res.status(500).send('Error rendering page');
+            }
+            res.render('baseof', { 
+                title: pageTitle, 
+                body: pageContent 
+            });
+        });
+    }
+});
 
 
 app.post('/register', async (req, res) => {
@@ -167,6 +250,37 @@ app.post('/register', async (req, res) => {
             });
         });
     }
+});
+
+
+// Summary page (protected - requires authentication)
+app.get('/summary', isAuthenticated, (req, res) => {
+    const pageTitle = 'Summary';
+    const pageData = {
+        username: req.session.username
+    };
+    
+    res.render('summary', { title: pageTitle, data: pageData }, (err, pageContent) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).send('Error rendering page');
+        }
+        res.render('baseof', { 
+            title: pageTitle, 
+            body: pageContent 
+        });
+    });
+});
+
+// Logout route
+app.get('/logout', (req, res) => {
+    req.session.destroy((err) => {
+        if (err) {
+            console.error("Error destroying session:", err);
+            return res.status(500).send('Error logging out');
+        }
+        res.redirect('/login');
+    });
 });
 
 
