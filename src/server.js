@@ -169,7 +169,7 @@ app.post('/register', async (req, res) => {
             [username, name, email, password]
         );
 
-        pageData.successMessage = "User registered successfully!";
+        pageData.successMessage = "User registered successfully! You can now <a href='/login'>login</a>.";
 
         return renderPage(req, res, 'register', pageTitle, pageData);
 
