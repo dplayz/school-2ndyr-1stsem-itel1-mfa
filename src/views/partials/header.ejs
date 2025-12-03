@@ -4,14 +4,22 @@
 -->
 <%
 const navigationItems = [
-    { id: 'home', label: 'Home', icon: 'home', href: '/' },
-    { id: 'expenses', label: 'Expenses', icon: 'speedometer2', href: 'expenses' },
-    { id: 'income', label: 'Income', icon: 'table', href: 'income' },
-    { id: 'financial-history', label: 'Financial History', icon: 'grid', href: 'financial-history' },
-    { id: 'settings', label: 'Settings', icon: 'people-circle', href: 'settings' },
-    { id: 'about', label: 'About the app', icon: 'people-circle', href: 'about' },
-    { id: 'report', label: 'Report a bug', icon: 'people-circle', href: 'report' }
+    { id: 'home', label: 'Home', icon: 'home', href: '/', requiresAuth: false },
+    { id: 'expenses', label: 'Expenses', icon: 'speedometer2', href: 'expenses', requiresAuth: true },
+    { id: 'income', label: 'Income', icon: 'table', href: 'income', requiresAuth: true },
+    { id: 'financial-history', label: 'Financial History', icon: 'grid', href: 'financial-history', requiresAuth: true },
+    { id: 'settings', label: 'Settings', icon: 'people-circle', href: 'settings', requiresAuth: true },
+    { id: 'about', label: 'About the app', icon: 'people-circle', href: 'about', requiresAuth: false },
+    { id: 'report', label: 'Report a bug', icon: 'people-circle', href: 'report', requiresAuth: false }
 ];
+
+// Get authentication status from parent template
+const isAuthenticated = locals.isAuthenticated || false;
+
+// Filter menu items based on authentication
+const visibleItems = navigationItems.filter(item => {
+    return item.requiresAuth === false || isAuthenticated === true;
+});
 
 // Define active page (can be passed from parent template)
 const currentActivePage = locals.activePage || 'home';
@@ -31,14 +39,21 @@ const currentActivePage = locals.activePage || 'home';
 
             <div class="collapse navbar-collapse" id="responsiveNavbarNav">
                 <ul class="navbar-nav me-auto text-center">
-                    <% navigationItems.forEach(item => { %>
+                    <% visibleItems.forEach(item => { %>
                         <li class="nav-item">
                             <a href="<%= item.href %>" class="nav-link <%= item.id === currentActivePage ? 'active' : '' %> fw-medium">
-                                <svg class="bi me-2" width="16" height="16"><use xlink:href="#<%= item.icon %>"></use></svg>
                                 <%= item.label %>
                             </a>
                         </li>
                     <% }); %>
+                    <% if (!isAuthenticated) { %>
+                        <li class="nav-item">
+                            <a href="/login" class="nav-link fw-medium">Login</a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="/register" class="nav-link fw-medium">Register</a>
+                        </li>
+                    <% } %>
                 </ul>
 
             </div>
@@ -54,7 +69,7 @@ const currentActivePage = locals.activePage || 'home';
         </a>
         <hr>
         <ul class="nav nav-pills flex-column mb-auto">
-            <% navigationItems.forEach(item => { %>
+            <% visibleItems.forEach(item => { %>
                 <li class="nav-item">
                     <a href="<%= item.href %>" class="nav-link <%= item.id === currentActivePage ? 'active' : 'text-white' %>" <%= item.id === currentActivePage ? 'aria-current="page"' : '' %>>
                         <svg class="bi me-2" width="16" height="16"><use xlink:href="#<%= item.icon %>"></use></svg>
@@ -64,18 +79,24 @@ const currentActivePage = locals.activePage || 'home';
             <% }); %>
         </ul>
         <hr>
-        <div class="dropdown">
-            <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" id="dropdownUser1" data-bs-toggle="dropdown" aria-expanded="false">
-                <img src="https://github.com/mdo.png" alt="" width="32" height="32" class="rounded-circle me-2">
-                <strong>mdo</strong>
-            </a>
-            <ul class="dropdown-menu dropdown-menu-dark text-small shadow" aria-labelledby="dropdownUser1">
-                <li><a class="dropdown-item" href="#">New project...</a></li>
-                <li><a class="dropdown-item" href="#">Settings</a></li>
-                <li><a class="dropdown-item" href="#">Profile</a></li>
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="#">Sign out</a></li>
-            </ul>
-        </div>
+        <% if (!isAuthenticated) { %>
+            <div class="d-flex flex-column gap-2">
+                <a href="/login" class="btn btn-primary btn-sm">Login</a>
+                <a href="/register" class="btn btn-secondary btn-sm">Register</a>
+            </div>
+        <% } else { %>
+            <div class="dropdown">
+                <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" id="dropdownUser1" data-bs-toggle="dropdown" aria-expanded="false">
+                    <img src="https://github.com/mdo.png" alt="" width="32" height="32" class="rounded-circle me-2">
+                    <strong><%= locals.username || 'User' %></strong>
+                </a>
+                <ul class="dropdown-menu dropdown-menu-dark text-small shadow" aria-labelledby="dropdownUser1">
+                    <li><a class="dropdown-item" href="#">Settings</a></li>
+                    <li><a class="dropdown-item" href="#">Profile</a></li>
+                    <li><hr class="dropdown-menu-divider"></li>
+                    <li><a class="dropdown-item" href="/logout">Sign out</a></li>
+                </ul>
+            </div>
+        <% } %>
     </div>
 </div>
