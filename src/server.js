@@ -187,15 +187,17 @@ app.post('/register', async (req, res) => {
 });
 
 
+
 // Summary page (protected - requires authentication)
-app.get('/summary', isAuthenticated, (req, res) => {
+app.get('/income', isAuthenticated, (req, res) => {
     const pageTitle = 'Summary';
     const pageData = {
         username: req.session.username
     };
     
-    renderPage(req, res, 'summary', pageTitle, pageData);
+    renderPage(req, res, 'income', pageTitle, pageData);
 });
+
 
 // Logout route
 app.get('/logout', (req, res) => {
