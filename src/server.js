@@ -23,6 +23,7 @@ const db = mysql.createConnection({
 // Create Express app
 const app = express();
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.json());
 app.use(cookieParser());
 app.use(session({
     secret: process.env.SESSION_SECRET || 'your-secret-key',
@@ -187,15 +188,77 @@ app.post('/register', async (req, res) => {
 });
 
 
+
 // Summary page (protected - requires authentication)
-app.get('/summary', isAuthenticated, (req, res) => {
-    const pageTitle = 'Summary';
+app.get('/income', isAuthenticated, async (req, res) => {
+    const pageTitle = 'Income';
     const pageData = {
-        username: req.session.username
+        username: req.session.username,
+        transactions: [],
+        currentBudget: 0,
+        thisMonthIncome: 0
     };
     
-    renderPage(req, res, 'summary', pageTitle, pageData);
+    try {
+        // Fetch all income transactions for the logged-in user
+        const [transactions] = await db.query(
+            `SELECT date, amount, description FROM transactions 
+             WHERE userid = ? AND type = 'income' 
+             ORDER BY date DESC`,
+            [req.session.userId]
+        );
+        
+        pageData.transactions = transactions;
+        
+        // Calculate current budget (total income - total expenses)
+        const [budgetResult] = await db.query(
+            `SELECT 
+                COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END), 0) as budget
+             FROM transactions 
+             WHERE userid = ?`,
+            [req.session.userId]
+        );
+        
+        pageData.currentBudget = budgetResult[0]?.budget || 0;
+        
+        // Calculate this month's income
+        const [monthlyResult] = await db.query(
+            `SELECT COALESCE(SUM(amount), 0) as monthlyIncome
+             FROM transactions 
+             WHERE userid = ? AND type = 'income' 
+             AND MONTH(date) = MONTH(NOW()) 
+             AND YEAR(date) = YEAR(NOW())`,
+            [req.session.userId]
+        );
+        
+        pageData.thisMonthIncome = monthlyResult[0]?.monthlyIncome || 0;
+        
+    } catch (err) {
+        console.error("Error fetching transactions:", err);
+    }
+    
+    renderPage(req, res, 'income', pageTitle, pageData);
 });
+
+// POST route to add new income
+app.post('/income', isAuthenticated, async (req, res) => {
+    const { amount, source } = req.body;
+    const userId = req.session.userId;
+    
+    try {
+        await db.query(
+            `INSERT INTO transactions (userid, date, amount, type, description) 
+             VALUES (?, NOW(), ?, 'income', ?)`,
+            [userId, amount, source]
+        );
+        
+        res.redirect('/income');
+    } catch (err) {
+        console.error("Error inserting income:", err);
+        res.redirect('/income');
+    }
+});
+
 
 // Logout route
 app.get('/logout', (req, res) => {

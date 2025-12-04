@@ -1,0 +1,80 @@
+<div class="p-2">
+    <h1 class="p-2">Income</h1>
+    <div class="container-xl w-75 p-2">
+    <div class="row g-4">
+        <div class="col-12 col-lg-6 bg-success text-white border rounded">
+        <div class="p-4">
+            <b class="fs-4">Current Budget</b>
+            <pre class="fs-4">₱<%= parseFloat(data.currentBudget).toFixed(2) %></pre>
+        </div>
+        </div>
+        <div class="col-12 col-lg-6 bg-success text-white border rounded">
+        <div class="p-4">
+            <b class="fs-4">This month's income:</b>
+            <pre class="fs-4">₱<%= parseFloat(data.thisMonthIncome).toFixed(2) %></pre>
+        </div>
+        </div>
+    </div>
+    </div>
+
+    <div class="container-fluid p-2">
+        <button type="button" class="btn btn-primary container-fluid" data-bs-toggle="modal" data-bs-target="#addIncomeModal">
+        Add new income
+        </button>
+    </div>
+
+    <div class="modal fade" id="addIncomeModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="/income" method="POST" id="incomeForm">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="exampleModalLabel">Add new income</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="incomeamount" class="form-label">Income amount</label>
+                        <input type="number" class="form-control" id="incomeamount" placeholder="670" name="amount" step="0.01" min="0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="incomesource" class="form-label">Source</label>
+                        <input type="text" class="form-control" placeholder="Salary..." name="source" id="incomesource" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    </div>
+
+    <div class="p-2">
+        <h2>Income History</h2>
+        <table class="table">
+            <thead>
+                <tr>
+                <th scope="col">Date</th>
+                <th scope="col">Amount</th>
+                <th scope="col">Source</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (data.transactions && data.transactions.length > 0) { %>
+                    <% data.transactions.forEach(transaction => { %>
+                        <tr>
+                            <td><%= new Date(transaction.date).toLocaleDateString() %></td>
+                            <td>₱<%= transaction.amount %></td>
+                            <td><%= transaction.description %></td>
+                        </tr>
+                    <% }); %>
+                <% } else { %>
+                    <tr>
+                        <td colspan="3" class="text-center text-muted">No income recorded yet</td>
+                    </tr>
+                <% } %>
+            </tbody>
+        </table>
+    </div>
+</div>
