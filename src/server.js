@@ -6,6 +6,7 @@ const session = require('express-session');
 const mysql = require("mysql2");
 let ejs = require('ejs');
 const path = require('path');
+const { access } = require('fs/promises');
 
 // MySQL Server Authentication guides. Please acquire a .env from server.
 const db = mysql.createConnection({
@@ -196,7 +197,8 @@ app.get('/income', isAuthenticated, async (req, res) => {
         username: req.session.username,
         transactions: [],
         currentBudget: 0,
-        thisMonthIncome: 0
+        thisMonthIncome: 0,
+        thisMonthBudget: 0
     };
     
     try {
@@ -219,7 +221,7 @@ app.get('/income', isAuthenticated, async (req, res) => {
             [req.session.userId, targetMonth, targetYear]
         );
 
-        pageData.transactions = transactions;
+        pageData.transactions = transactions;access
 
         // Calculate current budget (total income - total expenses overall)
         const [budgetResult] = await db.query(
@@ -230,6 +232,20 @@ app.get('/income', isAuthenticated, async (req, res) => {
             [req.session.userId]
         );
         pageData.currentBudget = budgetResult[0]?.budget || 0;
+
+        // Calculate this month's budget from the `budget` table (sum of budgets set for the selected month)
+        const mmForBudget = String(targetMonth).padStart(2, '0');
+        const yyyyForBudget = String(targetYear);
+        const budgetMMYYForQuery = `${mmForBudget}${yyyyForBudget}`; // e.g. '122025'
+
+        const [monthlyBudgetResult] = await db.query(
+            `SELECT COALESCE(SUM(amount), 0) as monthlyBudget
+             FROM budget
+             WHERE userId = ? AND budgetMMYY = ?`,
+            [req.session.userId, budgetMMYYForQuery]
+        );
+
+        pageData.thisMonthBudget = monthlyBudgetResult[0]?.monthlyBudget || 0;
 
         // Calculate this month's income (for selected month)
         const [monthlyResult] = await db.query(
