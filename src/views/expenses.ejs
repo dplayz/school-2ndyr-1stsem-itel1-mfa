@@ -65,6 +65,11 @@
                         <input type="number" class="form-control" id="budgetAmount" name="amount" placeholder="e.g., 5000" step="0.01" min="0" required>
                     </div>
                     <div class="mb-3">
+                        <label for="budgetMonth" class="form-label">Month - Year</label>
+                        <input type="month" class="form-control" id="budgetMonth" name="month" required>
+                        <div class="form-text">Select the month this budget applies to.</div>
+                    </div>
+                    <div class="mb-3">
                         <label for="budgetDescription" class="form-label">Description (optional)</label>
                         <input type="text" class="form-control" id="budgetDescription" name="description" placeholder="e.g., Groceries for December">
                     </div>
@@ -100,6 +105,11 @@
                             <option value="3">Entertainment and Leisure</option>
                             <option value="9">Others</option>
                         </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="expenseDate" class="form-label">Date</label>
+                        <input type="date" class="form-control" id="expenseDate" name="date" placeholder="YYYY-MM-DD">
+                        <div class="form-text">Optional: choose the exact date for this expense. If omitted, today will be used.</div>
                     </div>
                     <div class="mb-3">
                         <label for="expenseDescription" class="form-label">Expense Description</label>

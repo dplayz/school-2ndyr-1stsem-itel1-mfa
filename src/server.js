@@ -261,15 +261,32 @@ app.post('/income', isAuthenticated, async (req, res) => {
 
 // POST route to add new expense
 app.post('/expenses', isAuthenticated, async (req, res) => {
-    const { amount, source, category } = req.body;
+    const { amount, source, category, month, date } = req.body;
     const userId = req.session.userId;
     
     try {
-        await db.query(
-            `INSERT INTO transactions (userid, date, amount, type, description, category) 
-             VALUES (?, NOW(), ?, 'expenses', ?, ?)`,
-            [userId, amount, source, category]
-        );
+        // Determine date to use:
+        // Priority: explicit `date` (YYYY-MM-DD) -> `month` (YYYY-MM -> YYYY-MM-01) -> NOW()
+        let dateParam = null;
+        if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+            dateParam = date;
+        } else if (month && /^\d{4}-\d{2}$/.test(month)) {
+            dateParam = `${month}-01`;
+        }
+
+        if (dateParam) {
+            await db.query(
+                `INSERT INTO transactions (userid, date, amount, type, description, category) 
+                 VALUES (?, ?, ?, 'expenses', ?, ?)`,
+                [userId, dateParam, amount, source, parseInt(category, 10) || 0]
+            );
+        } else {
+            await db.query(
+                `INSERT INTO transactions (userid, date, amount, type, description, category) 
+                 VALUES (?, NOW(), ?, 'expenses', ?, ?)`,
+                [userId, amount, source, parseInt(category, 10) || 0]
+            );
+        }
         
         res.redirect('/expenses');
     } catch (err) {
@@ -388,17 +405,24 @@ app.get('/expenses', isAuthenticated, async (req, res) => {
 app.post('/budget', isAuthenticated, async (req, res) => {
     try {
         const userId = req.session.userId;
-        let { category, amount, description } = req.body;
+        let { category, amount, description, month } = req.body;
 
         // Basic validation / sanitization
         category = parseInt(category, 10) || 0;
         amount = parseFloat(amount) || 0;
         description = description ? description.toString().slice(0, 255) : null;
 
-        // Build budgetMMYY as MMYYYY (6 chars)
-        const now = new Date();
-        const mm = String(now.getMonth() + 1).padStart(2, '0');
-        const yyyy = String(now.getFullYear());
+        // Build budgetMMYY as MMYYYY (6 chars). If `month` provided (YYYY-MM), use it.
+        let mm, yyyy;
+        if (month && /^\d{4}-\d{2}$/.test(month)) {
+            // month is 'YYYY-MM'
+            yyyy = month.slice(0,4);
+            mm = month.slice(5,7);
+        } else {
+            const now = new Date();
+            mm = String(now.getMonth() + 1).padStart(2, '0');
+            yyyy = String(now.getFullYear());
+        }
         const budgetMMYY = `${mm}${yyyy}`;
 
         // Upsert into budget table
