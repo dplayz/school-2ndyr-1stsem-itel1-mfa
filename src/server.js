@@ -6,7 +6,7 @@ const session = require('express-session');
 const mysql = require("mysql2");
 let ejs = require('ejs');
 const path = require('path');
-const { access } = require('fs/promises');
+
 
 // MySQL Server Authentication guides. Please acquire a .env from server.
 const db = mysql.createConnection({
@@ -65,6 +65,8 @@ app.get("/style/main.css", function(req, res){
 app.use('/dist/bootstrap/css', express.static(path.join(__dirname, '../node_modules/bootstrap/dist/css')));
 app.use('/dist/bootstrap/js', express.static(path.join(__dirname, '../node_modules/bootstrap/dist/js')));
 app.use('/dist/bootstrap-icons/fonts', express.static(path.join(__dirname, '../node_modules/bootstrap-icons/font/')));
+// Serve Chart.js from node_modules for local use instead of CDN
+app.use('/dist/chartjs', express.static(path.join(__dirname, '../node_modules/chart.js/dist')));
 
 // Specify the directory where your EJS template files are located
 app.set('views', path.join(__dirname, 'views'));
@@ -92,11 +94,62 @@ const renderPage = (req, res, viewName, pageTitle, pageData = {}) => {
 
 // Home page route. will show summary if authenticated, 
 // will show default home when not authenticated. 
-app.get('/', (req, res) => {
+app.get('/', async (req, res) => {
     const pageTitle = 'Home';
     const pageData = {
         username: req.session.username
     };
+
+    // If authenticated, compute simple spending statistics for the dashboard
+    if (req.session.userId) {
+        try {
+            const userId = req.session.userId;
+            const now = new Date();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const yyyy = String(now.getFullYear());
+
+            // total expenses for current month
+            const [monthlyExpensesResult] = await db.query(
+                `SELECT COALESCE(SUM(amount), 0) as monthlyExpenses
+                 FROM transactions
+                 WHERE userid = ? AND type = 'expenses'
+                   AND MONTH(date) = ? AND YEAR(date) = ?`,
+                [userId, mm, yyyy]
+            );
+
+            pageData.monthlyExpenses = monthlyExpensesResult[0]?.monthlyExpenses || 0;
+
+            // total budget for current month from budget table
+            const budgetMMYY = `${mm}${yyyy}`;
+            const [monthlyBudgetResult] = await db.query(
+                `SELECT COALESCE(SUM(amount), 0) as monthlyBudget
+                 FROM budget
+                 WHERE userId = ? AND budgetMMYY = ?`,
+                [userId, budgetMMYY]
+            );
+
+            pageData.monthlyBudget = monthlyBudgetResult[0]?.monthlyBudget || 0;
+
+            // remaining (budget - spent)
+            pageData.monthlyRemaining = (pageData.monthlyBudget - pageData.monthlyExpenses) || 0;
+
+            // top 3 categories by spend this month
+            const [topCategories] = await db.query(
+                `SELECT category AS categoryId, COALESCE(SUM(amount),0) AS total
+                 FROM transactions
+                 WHERE userid = ? AND type = 'expenses' AND MONTH(date) = ? AND YEAR(date) = ?
+                 GROUP BY category
+                 ORDER BY total DESC
+                 LIMIT 3`,
+                [userId, mm, yyyy]
+            );
+
+            pageData.topCategories = topCategories; // array of {categoryId, total}
+        } catch (err) {
+            console.error('Error computing home stats:', err);
+        }
+    }
+
     renderPage(req, res, 'index', pageTitle, pageData);
 });
 
@@ -225,7 +278,7 @@ app.get('/income', isAuthenticated, async (req, res) => {
             [req.session.userId, targetMonth, targetYear]
         );
 
-        pageData.transactions = transactions;access
+        pageData.transactions = transactions;
 
         // Calculate current budget (total income - total expenses overall)
         const [budgetResult] = await db.query(
@@ -488,6 +541,105 @@ app.get('/logout', (req, res) => {
         }
         res.redirect('/login');
     });
+});
+
+// API: total expenses per month for a year (bar chart data)
+app.get('/api/stats/expenses/yearly', isAuthenticated, async (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+
+        const [rows] = await db.query(
+            `SELECT MONTH(date) AS month, COALESCE(SUM(amount),0) AS total
+             FROM transactions
+             WHERE userid = ? AND type = 'expenses' AND YEAR(date) = ?
+             GROUP BY MONTH(date)`,
+            [userId, year]
+        );
+
+        // Build an array of 12 months
+        const totals = Array.from({ length: 12 }, () => 0);
+        for (const r of rows) {
+            const idx = parseInt(r.month, 10) - 1;
+            if (idx >= 0 && idx < 12) totals[idx] = Number(r.total) || 0;
+        }
+
+        res.json({ year, totals });
+    } catch (err) {
+        console.error('Error /api/stats/expenses/yearly', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// API: total income (salary) per month for a year (bar chart data)
+app.get('/api/stats/income/yearly', isAuthenticated, async (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+
+        const [rows] = await db.query(
+            `SELECT MONTH(date) AS month, COALESCE(SUM(amount),0) AS total
+             FROM transactions
+             WHERE userid = ? AND type = 'income' AND YEAR(date) = ?
+             GROUP BY MONTH(date)`,
+            [userId, year]
+        );
+
+        const totals = Array.from({ length: 12 }, () => 0);
+        for (const r of rows) {
+            const idx = parseInt(r.month, 10) - 1;
+            if (idx >= 0 && idx < 12) totals[idx] = Number(r.total) || 0;
+        }
+
+        res.json({ year, totals });
+    } catch (err) {
+        console.error('Error /api/stats/income/yearly', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// API: expenses per category for a given month (pie chart data). month param: 'YYYY-MM'
+app.get('/api/stats/expenses/category', isAuthenticated, async (req, res) => {
+    try {
+        const userId = req.session.userId;
+        let monthParam = req.query.month; // optional 'YYYY-MM'
+        let target = new Date();
+        if (monthParam && /^\d{4}-\d{2}$/.test(monthParam)) {
+            const [y, m] = monthParam.split('-').map(Number);
+            target = new Date(y, m - 1, 1);
+        }
+        const mm = target.getMonth() + 1;
+        const yyyy = target.getFullYear();
+
+        const [rows] = await db.query(
+            `SELECT category AS categoryId, COALESCE(SUM(amount),0) AS total
+             FROM transactions
+             WHERE userid = ? AND type = 'expenses' AND MONTH(date) = ? AND YEAR(date) = ?
+             GROUP BY category
+             ORDER BY total DESC`,
+            [userId, mm, yyyy]
+        );
+
+        // Map category ids to friendly labels (same mapping as views)
+        const categoryNames = {
+            1: 'Groceries and Needs',
+            2: 'Bills and Obligations',
+            3: 'Entertainment and Leisure'
+        };
+
+        const labels = [];
+        const totals = [];
+        for (const r of rows) {
+            const id = String(r.categoryId);
+            labels.push(categoryNames[id] || 'Others');
+            totals.push(Number(r.total) || 0);
+        }
+
+        res.json({ month: `${String(mm).padStart(2,'0')}-${yyyy}`, labels, totals });
+    } catch (err) {
+        console.error('Error /api/stats/expenses/category', err);
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 
 

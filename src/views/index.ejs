@@ -7,12 +7,85 @@
 
 <% } else { %>
 <div class="p-3">
-    <h1>Summary</h1>
+    <h1>Home</h1>
     <p>Welcome, <%= data.username %>!</p>
     
-    <div class="mt-4">
-        <a href="/logout" class="btn btn-danger">Logout</a>
+    <div class="row g-4 mt-3">
+        <div class="col-12 col-md-4">
+            <div class="p-3 bg-success text-white border rounded">
+                <div class="fw-semibold">Monthly Budget</div>
+                <div class="fs-4">₱<%= parseFloat(data.monthlyBudget || 0).toLocaleString('en-US',{minimumFractionDigits: 2, maximumFractionDigits:2}) %></div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="p-3 bg-danger text-white border rounded">
+                <div class="fw-semibold">This Month's Spending</div>
+                <div class="fs-4">₱<%= parseFloat(data.monthlyExpenses || 0).toLocaleString('en-US',{minimumFractionDigits: 2, maximumFractionDigits:2}) %></div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="p-3 bg-info text-white border rounded">
+                <div class="fw-semibold">Remaining Funds</div>
+                <div class="fs-4">₱<%= parseFloat(data.monthlyRemaining || 0).toLocaleString('en-US',{minimumFractionDigits: 2, maximumFractionDigits:2}) %></div>
+            </div>
+        </div>
     </div>
+
+    <div class="mt-4 container-fluid">
+        <h4>Top spending categories</h4>
+        <% if (data.topCategories && data.topCategories.length) { %>
+            <ul class="list-group list-group-flush w-50">
+                <% data.topCategories.forEach(row => { %>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>
+                            <% if (row.categoryId == 1) { %>Groceries and Needs
+                            <% } else if (row.categoryId == 2) { %>Bills and Obligations
+                            <% } else if (row.categoryId == 3) { %>Entertainment and Leisure
+                            <% } else { %>Others<% } %>
+                        </span>
+                        <span>₱<%= parseFloat(row.total).toLocaleString('en-US',{minimumFractionDigits: 2, maximumFractionDigits:2}) %></span>
+                    </li>
+                <% }) %>
+            </ul>
+        <% } else { %>
+            <div class="text-muted">No spending recorded this month.</div>
+        <% } %>
+    </div>
+
+    <div class="mt-5">
+        <div class="row gy-4">
+            <div class="col-12 col-lg-6">
+                <div class="card p-3">
+                    <h6 class="card-title">Total spendings per month (year)</h6>
+                    <div class="chart-container" style="height:260px;">
+                        <canvas id="expensesYearlyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-lg-6">
+                <div class="card p-3">
+                    <h6 class="card-title">Total salary per month (year)</h6>
+                    <div class="chart-container" style="height:260px;">
+                        <canvas id="incomeYearlyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-lg-6">
+                <div class="card p-3">
+                    <h6 class="card-title">Spendings by category (current month)</h6>
+                    <div class="chart-container" style="height:260px;">
+                        <canvas id="categoryPieChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart.js (local) and app chart script -->
+    <script src="/dist/chartjs/chart.umd.min.js"></script>
+    <script src="/assets/dist/chartsrenderer.js"></script>
 </div>
 <% } %>
 
