@@ -10,6 +10,48 @@
     <h1>Summary</h1>
     <p>Welcome, <%= data.username %>!</p>
     
+    <div class="row g-4 mt-3">
+        <div class="col-12 col-md-4">
+            <div class="p-3 bg-success text-white border rounded">
+                <div class="fw-semibold">Monthly Budget</div>
+                <div class="fs-4">₱<%= parseFloat(data.monthlyBudget || 0).toFixed(2) %></div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="p-3 bg-danger text-white border rounded">
+                <div class="fw-semibold">This Month's Spending</div>
+                <div class="fs-4">₱<%= parseFloat(data.monthlyExpenses || 0).toFixed(2) %></div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="p-3 bg-info text-white border rounded">
+                <div class="fw-semibold">Remaining</div>
+                <div class="fs-4">₱<%= parseFloat(data.monthlyRemaining || 0).toFixed(2) %></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <h4>Top categories</h4>
+        <% if (data.topCategories && data.topCategories.length) { %>
+            <ul class="list-group list-group-flush w-50">
+                <% data.topCategories.forEach(row => { %>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>
+                            <% if (row.categoryId == 1) { %>Groceries and Needs
+                            <% } else if (row.categoryId == 2) { %>Bills and Obligations
+                            <% } else if (row.categoryId == 3) { %>Entertainment and Leisure
+                            <% } else { %>Others<% } %>
+                        </span>
+                        <span>₱<%= parseFloat(row.total).toFixed(2) %></span>
+                    </li>
+                <% }) %>
+            </ul>
+        <% } else { %>
+            <div class="text-muted">No spending recorded this month.</div>
+        <% } %>
+    </div>
+
     <div class="mt-4">
         <a href="/logout" class="btn btn-danger">Logout</a>
     </div>

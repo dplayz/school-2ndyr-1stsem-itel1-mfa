@@ -92,11 +92,62 @@ const renderPage = (req, res, viewName, pageTitle, pageData = {}) => {
 
 // Home page route. will show summary if authenticated, 
 // will show default home when not authenticated. 
-app.get('/', (req, res) => {
+app.get('/', async (req, res) => {
     const pageTitle = 'Home';
     const pageData = {
         username: req.session.username
     };
+
+    // If authenticated, compute simple spending statistics for the dashboard
+    if (req.session.userId) {
+        try {
+            const userId = req.session.userId;
+            const now = new Date();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const yyyy = String(now.getFullYear());
+
+            // total expenses for current month
+            const [monthlyExpensesResult] = await db.query(
+                `SELECT COALESCE(SUM(amount), 0) as monthlyExpenses
+                 FROM transactions
+                 WHERE userid = ? AND type = 'expenses'
+                   AND MONTH(date) = ? AND YEAR(date) = ?`,
+                [userId, mm, yyyy]
+            );
+
+            pageData.monthlyExpenses = monthlyExpensesResult[0]?.monthlyExpenses || 0;
+
+            // total budget for current month from budget table
+            const budgetMMYY = `${mm}${yyyy}`;
+            const [monthlyBudgetResult] = await db.query(
+                `SELECT COALESCE(SUM(amount), 0) as monthlyBudget
+                 FROM budget
+                 WHERE userId = ? AND budgetMMYY = ?`,
+                [userId, budgetMMYY]
+            );
+
+            pageData.monthlyBudget = monthlyBudgetResult[0]?.monthlyBudget || 0;
+
+            // remaining (budget - spent)
+            pageData.monthlyRemaining = (pageData.monthlyBudget - pageData.monthlyExpenses) || 0;
+
+            // top 3 categories by spend this month
+            const [topCategories] = await db.query(
+                `SELECT category AS categoryId, COALESCE(SUM(amount),0) AS total
+                 FROM transactions
+                 WHERE userid = ? AND type = 'expenses' AND MONTH(date) = ? AND YEAR(date) = ?
+                 GROUP BY category
+                 ORDER BY total DESC
+                 LIMIT 3`,
+                [userId, mm, yyyy]
+            );
+
+            pageData.topCategories = topCategories; // array of {categoryId, total}
+        } catch (err) {
+            console.error('Error computing home stats:', err);
+        }
+    }
+
     renderPage(req, res, 'index', pageTitle, pageData);
 });
 
