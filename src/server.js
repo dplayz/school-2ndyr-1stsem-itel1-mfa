@@ -153,6 +153,15 @@ app.get('/', async (req, res) => {
     renderPage(req, res, 'index', pageTitle, pageData);
 });
 
+// About page route
+app.get('/about', (req, res) => {
+    const pageTitle = 'About';
+    const pageData = {
+        username: req.session.username
+    };
+    renderPage(req, res, 'about', pageTitle, pageData);
+});
+
 // Routes to render /login page
 app.get('/login', isNotAuthenticated, (req, res) => {
     const pageTitle = 'Login';
