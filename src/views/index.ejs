@@ -1,10 +1,108 @@
 <% if (!data.username) { %>
-<div class="p-5 m-3 m-md-5 text-center bg-body-tertiary rounded-3 border border-danger border-opacity-50">
-    <i class="bi bi-exclamation-octagon text-danger" style="font-size:5em;"></i>
-    <h1 class="text-body-emphasis">Work in progress</h1>
-    <p class="col-lg-8 mx-auto fs-5 text-muted">This page is currently work-in-progress.</p>
-</div>
+<div class="container p-4">
 
+  <!-- HERO SECTION -->
+  <section class="text-center">
+    <h1 class="text-body-emphasis mt-3">Motivational Finance Tracker</h1>
+    <p class="col-lg-6 mx-auto fs-5 text-muted">
+      Welcome to Motivational Tracker — track your expenses, income, and more with confidence.
+    </p>
+
+    <div class="mt-4">
+      <a href="/register" class="btn btn-success btn-lg px-4">Start now!</a>
+    </div>
+  </section>
+
+  <!-- FEATURES SECTION -->
+  <section class="text-center mt-5">
+  <h2 class="fw-semibold">What can you do</h2>
+
+  <div class="row g-4">
+    
+    <!-- TRACK -->
+    <div class="col-md-4">
+      <div class="p-4 bg-body-secondary rounded-3 h-100">
+        <i class="bi bi-graph-up-arrow fs-1 text-info"></i>
+        <h5 class="mt-3">Track</h5>
+        <p class="text-muted">
+          Track your budget by inputting your expenses to see how much money you have left.
+        </p>
+      </div>
+    </div>
+
+    <!-- RECORD -->
+    <div class="col-md-4">
+      <div class="p-4 bg-body-secondary rounded-3 h-100">
+        <i class="bi bi-journal-text fs-1 text-success"></i>
+        <h5 class="mt-3">Record</h5>
+        <p class="text-muted">
+          Record your income to see how much money you've spent and how much is left.
+        </p>
+      </div>
+    </div>
+
+    <!-- MANAGE -->
+    <div class="col-md-4">
+      <div class="p-4 bg-body-secondary rounded-3 h-100">
+        <i class="bi bi-sliders fs-1 text-warning"></i>
+        <h5 class="mt-3">Manage</h5>
+        <p class="text-muted">
+          Manage your budget easily by viewing and adjusting your income and expenses.
+        </p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+  
+  <section class="text-center mt-5">
+    <h2 class="fw-semibold">Features</h2>
+
+    <div class="row g-4">
+      <div class="col-md-4">
+        <div class="p-4 bg-body-secondary rounded-3 h-100">
+          <i class="bi bi-window-sidebar fs-1 text-primary"></i>
+          <h5 class="mt-3">Modern UI Pages</h5>
+          <p class="text-muted">Clean, responsive, and intuitive interfaces for better usability.</p>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="p-4 bg-body-secondary rounded-3 h-100">
+          <i class="bi bi-rocket fs-1 text-warning"></i>
+          <h5 class="mt-3">Fast Performance</h5>
+          <p class="text-muted">Optimized and responsive performance across all devices.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="text-center mt-5">
+    <h2 class="fw-semibold">What’s Coming Soon</h2>
+    <p class="text-muted mb-5">A preview of what's planned for the future.</p>
+
+    <div class="row g-4">
+      <div class="col-md-4">
+        <div class="p-4 bg-body-secondary rounded-3 h-100">
+          <i class="bi bi-gear fs-1 text-success"></i>
+          <h5 class="mt-3">Interactive Features</h5>
+          <p class="text-muted">Dynamic forms, analytics, and financial tools.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ABOUT SECTION -->
+  <section class="mt-5">
+    <h1>About the Motivational Finance Tracker</h1>
+    <p>
+      With rising living costs, a finance tracker has never been more essential.
+      The Motivational Finance Tracker App helps users manage their finances with clarity and confidence. 
+    </p>
+  </section>
+</div>
 <% } else { %>
 <div class="p-3">
     <h1>Home</h1>
