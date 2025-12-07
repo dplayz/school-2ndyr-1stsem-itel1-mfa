@@ -76,11 +76,15 @@ const renderPage = (req, res, viewName, pageTitle, pageData = {}) => {
             console.error(err);
             return res.status(500).send('Error rendering page');
         }
+        // Provide `activePage` to the base template so header can highlight the correct nav item.
+        // Map view names to nav ids when they differ (e.g. 'index' view => 'home' nav id)
+        const activePageName = (viewName === 'index') ? 'home' : viewName;
         res.render('baseof', { 
             title: pageTitle, 
             body: pageContent,
             isAuthenticated: !!req.session.userId,
-            username: req.session.username
+            username: req.session.username,
+            activePage: activePageName
         });
     });
 };
