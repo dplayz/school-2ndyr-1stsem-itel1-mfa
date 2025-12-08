@@ -26,11 +26,21 @@ const app = express();
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
+// If running behind a proxy (Vercel, Heroku, etc.) trust the first proxy so secure cookies work.
+app.set('trust proxy', 1);
+
 // Use encrypted cookie session (stored client-side) so no DB table is required.
+// Use a persistent `SESSION_SECRET` in Vercel environment variables (same value across deploys).
+const sessionSecret = process.env.SESSION_SECRET;
+if (!sessionSecret && process.env.NODE_ENV === 'production') {
+    console.warn('WARNING: SESSION_SECRET is not set. Set SESSION_SECRET in your environment to avoid session invalidation on deploys.');
+}
+
 app.use(cookieSession({
     name: 'session',
-    keys: [process.env.SESSION_SECRET || 'session-key'],
-    // No maxAge -> session cookie (expires on browser close). Set to a number (ms) for persistent cookie.
+    keys: [sessionSecret || 'session-key'],
+    // Default to a 7-day persistent cookie; override with env `SESSION_MAX_AGE_MS` if desired.
+    maxAge: Number(process.env.SESSION_MAX_AGE_MS) || 7 * 24 * 60 * 60 * 1000,
     // secure: true in production when using HTTPS
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
