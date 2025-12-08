@@ -279,6 +279,11 @@ app.get('/income', isAuthenticated, async (req, res) => {
         pageData.page = page;
         pageData.selectedMonthLabel = `${monthNames[target.getMonth()]} ${targetYear}`;
 
+        // Build budgetMMYY string for queries (MMYYYY)
+        const mm = String(targetMonth).padStart(2, '0');
+        const yyyy = String(targetYear);
+        const budgetMMYY = `${mm}${yyyy}`; // e.g., '122025'
+
         // Fetch income transactions for the selected month
         const [transactions] = await db.query(
             `SELECT date, amount, description FROM transactions 
@@ -476,6 +481,9 @@ app.get('/expenses', isAuthenticated, async (req, res) => {
 
         pageData.thisMonthIncome = monthlyIncomeResult[0]?.monthlyIncome || 0;
 
+        // Remaining income for the selected month (income - expenses)
+        pageData.thisMonthIncomeRemaining = (pageData.thisMonthIncome - pageData.thisMonthExpenses) || 0;
+
         // Fetch totals per category for the selected month (gastos by category)
         const [byCategoryRows] = await db.query(
             `SELECT category AS categoryId, COALESCE(SUM(amount),0) AS total
@@ -492,15 +500,41 @@ app.get('/expenses', isAuthenticated, async (req, res) => {
         const byCategoryMap = {};
         for (const r of byCategoryRows) {
             // Use string keys to be safe when accessed from EJS (data.byCategory['2'])
-            byCategoryMap[String(r.categoryId)] = { totalexpense: r.total };
+            byCategoryMap[String(r.categoryId)] = { totalexpense: r.total, remainingBudget: 0 };
         }
         pageData.byCategory = byCategoryMap; // e.g. data.byCategory['2'].totalexpense
 
-        // Calculate total monthly budget from `budget` table for selected month
-        const mm = String(targetMonth).padStart(2, '0');
-        const yyyy = String(targetYear);
-        const budgetMMYY = `${mm}${yyyy}`; // e.g., '122025'
+        // Build budgetMMYY (MMYYYY) for the selected month so budget queries use the correct key
+        const mmForBudgetKey = String(targetMonth).padStart(2, '0');
+        const yyyyForBudgetKey = String(targetYear);
+        const budgetMMYY = `${mmForBudgetKey}${yyyyForBudgetKey}`; // e.g., '122025'
 
+        // Fetch per-category budgets for the selected month and compute remaining per category
+        const [budgetByCategoryRows] = await db.query(
+            `SELECT categoryId, COALESCE(amount,0) AS amount
+             FROM budget
+             WHERE userId = ? AND budgetMMYY = ?`,
+            [req.session.userId, budgetMMYY]
+        );
+
+        const budgetMap = {};
+        for (const b of budgetByCategoryRows) {
+            budgetMap[String(b.categoryId)] = Number(b.amount) || 0;
+            // ensure key exists in byCategory map
+            if (!pageData.byCategory[String(b.categoryId)]) {
+                pageData.byCategory[String(b.categoryId)] = { totalexpense: 0, remainingBudget: 0 };
+            }
+            // compute remaining (budget - expense)
+            pageData.byCategory[String(b.categoryId)].remainingBudget = (Number(b.amount) - (pageData.byCategory[String(b.categoryId)].totalexpense || 0)) || 0;
+        }
+
+        // Also ensure common category keys exist so the view doesn't break (1,2,3,9)
+        const ensureCats = ['1','2','3','9'];
+        for (const cid of ensureCats) {
+            if (!pageData.byCategory[cid]) pageData.byCategory[cid] = { totalexpense: 0, remainingBudget: (budgetMap[cid] || 0) };
+            else if (pageData.byCategory[cid].remainingBudget === undefined) pageData.byCategory[cid].remainingBudget = (budgetMap[cid] || 0) - (pageData.byCategory[cid].totalexpense || 0);
+        }
+        // Calculate total monthly budget from `budget` table for selected month
         const [monthlyBudgetResult] = await db.query(
             `SELECT COALESCE(SUM(amount), 0) as monthlyBudget
              FROM budget

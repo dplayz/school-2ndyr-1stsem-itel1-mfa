@@ -6,25 +6,32 @@
         <div class="col-12 p-3 bg-success text-white border rounded">
                 <b class="fs-6">This Month:</b><br>
                 <span class="fs-5">₱<%= parseFloat(data.thisMonthExpenses || 0).toLocaleString('en-US',{minimumFractionDigits: 2, maximumFractionDigits:2}) %></span> /
-                <span class="fs-5">₱<%= parseFloat(data.totalMonthlyBudget || 0).toLocaleString('en-US',{minimumFractionDigits: 2, maximumFractionDigits:2}) %></span> /
-                <span class="fs-5">₱<%=parseFloat(data.thisMonthIncome || 0).toLocaleString('en-US',{minimumFractionDigits: 2, maximumFractionDigits:2})%></span>
+                <span class="fs-5">₱<%=parseFloat(data.thisMonthIncomeRemaining || 0).toLocaleString('en-US',{minimumFractionDigits: 2, maximumFractionDigits:2})%></span>
         </div>
         <div class="row mx-auto">
             <div class="col-3 p-3 bg-success text-white border rounded">
                 <b class="fs-6">Groceries and Needs</b><br>
                 <span class="fs-4">₱<%= parseFloat(((data.byCategory && data.byCategory['1'] && data.byCategory['1'].totalexpense) || 0)).toLocaleString('en-US',{minimumFractionDigits: 2, maximumFractionDigits:2}) %></span>
+                <div class="mt-2"><small class="text-white-50">Remaining budget:</small>
+                <div class="fw-semibold">₱<%= parseFloat(((data.byCategory && data.byCategory['1'] && data.byCategory['1'].remainingBudget) || 0)).toLocaleString('en-US',{minimumFractionDigits: 2, maximumFractionDigits:2}) %></div></div>
             </div>
             <div class="col-3 p-3 bg-success text-white border rounded">
                 <b class="fs-6">Bills and Obligations</b><br>
                 <span class="fs-4">₱<%= parseFloat(((data.byCategory && data.byCategory['2'] && data.byCategory['2'].totalexpense) || 0)).toLocaleString('en-US',{minimumFractionDigits: 2, maximumFractionDigits:2}) %></span>
+                <div class="mt-2"><small class="text-white-50">Remaining budget:</small>
+                <div class="fw-semibold">₱<%= parseFloat(((data.byCategory && data.byCategory['2'] && data.byCategory['2'].remainingBudget) || 0)).toLocaleString('en-US',{minimumFractionDigits: 2, maximumFractionDigits:2}) %></div></div>
             </div>
             <div class="col-3 p-3 bg-success text-white border rounded">
                 <b class="fs-6">Entertainment and Leisure</b><br>
                 <span class="fs-4">₱<%= parseFloat(((data.byCategory && data.byCategory['3'] && data.byCategory['3'].totalexpense) || 0)).toLocaleString('en-US',{minimumFractionDigits: 2, maximumFractionDigits:2}) %></span>
+                <div class="mt-2"><small class="text-white-50">Remaining budget:</small>
+                <div class="fw-semibold">₱<%= parseFloat(((data.byCategory && data.byCategory['3'] && data.byCategory['3'].remainingBudget) || 0)).toLocaleString('en-US',{minimumFractionDigits: 2, maximumFractionDigits:2}) %></div></div>
             </div>
             <div class="col-3 p-3 bg-success text-white border rounded">
                 <b class="fs-6">Others</b><br>
-                <span class="fs-4">₱<%= parseFloat(((data.byCategory && data.byCategory['4'] && data.byCategory['4'].totalexpense) || 0)).toLocaleString('en-US',{minimumFractionDigits: 2, maximumFractionDigits:2}) %></span>
+                <span class="fs-4">₱<%= parseFloat(((data.byCategory && data.byCategory['9'] && data.byCategory['9'].totalexpense) || 0)).toLocaleString('en-US',{minimumFractionDigits: 2, maximumFractionDigits:2}) %></span>
+                <div class="mt-2"><small class="text-white-50">Remaining budget:</small>
+                <div class="fw-semibold">₱<%= parseFloat(((data.byCategory && data.byCategory['9'] && data.byCategory['9'].remainingBudget) || 0)).toLocaleString('en-US',{minimumFractionDigits: 2, maximumFractionDigits:2}) %></div></div>
             </div>
         </div>
     </div>
