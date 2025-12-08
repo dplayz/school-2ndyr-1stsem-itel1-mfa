@@ -51,7 +51,9 @@ const currentActivePage = locals.activePage || 'home';
                         <li class="nav-item">
                             <a href="/register" class="nav-link fw-medium">Register</a>
                         </li>
-                    <% } %>
+                        <% } else { %>
+                        <li class="nav-item"><a class="nav-link" href="/logout">Sign out</a></li>
+                        <% } %>
                 </ul>
 
             </div>
