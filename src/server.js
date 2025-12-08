@@ -594,13 +594,29 @@ app.post('/budget', isAuthenticated, async (req, res) => {
 
 // Logout route
 app.get('/logout', (req, res) => {
-    req.session.destroy((err) => {
-        if (err) {
-            console.error("Error destroying session:", err);
-            return res.status(500).send('Error logging out');
+    try {
+        // If using express-session (has destroy), call it.
+        if (req.session && typeof req.session.destroy === 'function') {
+            req.session.destroy((err) => {
+                if (err) {
+                    console.error("Error destroying session:", err);
+                    return res.status(500).send('Error logging out');
+                }
+                // clear cookie (session name defined in cookieSession middleware)
+                res.clearCookie('session');
+                return res.redirect('/login');
+            });
+            return;
         }
-        res.redirect('/login');
-    });
+
+        // cookie-session: assign null to clear stored session
+        req.session = null;
+        res.clearCookie('session');
+        return res.redirect('/login');
+    } catch (err) {
+        console.error('Error during logout:', err);
+        return res.redirect('/login');
+    }
 });
 
 // API: total expenses per month for a year (bar chart data)
