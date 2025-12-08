@@ -314,6 +314,19 @@ app.get('/income', isAuthenticated, async (req, res) => {
 
         pageData.thisMonthBudget = monthlyBudgetResult[0]?.monthlyBudget || 0;
 
+        // Calculate this month's expenses (for selected month) so we can show remaining budget
+        const [monthlyExpensesResult] = await db.query(
+            `SELECT COALESCE(SUM(amount), 0) as monthlyExpenses
+             FROM transactions 
+             WHERE userid = ? AND type = 'expenses' 
+             AND MONTH(date) = ? AND YEAR(date) = ?`,
+            [req.session.userId, targetMonth, targetYear]
+        );
+        pageData.thisMonthExpenses = monthlyExpensesResult[0]?.monthlyExpenses || 0;
+
+        // Remaining budget for the selected month (budget - expenses)
+        pageData.thisMonthRemaining = (pageData.thisMonthBudget - pageData.thisMonthExpenses) || 0;
+
         // Calculate this month's income (for selected month)
         const [monthlyResult] = await db.query(
             `SELECT COALESCE(SUM(amount), 0) as monthlyIncome
@@ -323,6 +336,9 @@ app.get('/income', isAuthenticated, async (req, res) => {
             [req.session.userId, targetMonth, targetYear]
         );
         pageData.thisMonthIncome = monthlyResult[0]?.monthlyIncome || 0;
+
+        // Remaining income for the selected month (income - expenses)
+        pageData.thisMonthIncomeRemaining = (pageData.thisMonthIncome - pageData.thisMonthExpenses) || 0;
 
     } catch (err) {
         console.error("Error fetching income transactions:", err);
