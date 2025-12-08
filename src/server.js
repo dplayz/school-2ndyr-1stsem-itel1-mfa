@@ -58,7 +58,7 @@ const isNotAuthenticated = (req, res, next) => {
 
 
 // Serve assets
-app.use('/assets', express.static('assets'));
+app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.get("/style/main.css", function(req, res){
     res.sendFile(__dirname + "/style/main.css");
 })
