@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const bodyParser = require("body-parser");
 const cookieParser = require('cookie-parser');
-const session = require('express-session');
+const cookieSession = require('cookie-session');
 const mysql = require("mysql2");
 let ejs = require('ejs');
 const path = require('path');
@@ -26,14 +26,15 @@ const app = express();
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
-app.use(session({
-    secret: process.env.SESSION_SECRET || 'your-secret-key',
-    resave: false,
-    saveUninitialized: false,
-    cookie: { 
-        secure: false, // Set to true if using HTTPS
-        maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
-    }
+// Use encrypted cookie session (stored client-side) so no DB table is required.
+app.use(cookieSession({
+    name: 'session',
+    keys: [process.env.SESSION_SECRET || 'session-key'],
+    // No maxAge -> session cookie (expires on browser close). Set to a number (ms) for persistent cookie.
+    // secure: true in production when using HTTPS
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    sameSite: 'lax'
 }));
 // Set EJS as the view engine
 app.set('view engine', 'ejs');
@@ -56,8 +57,8 @@ const isNotAuthenticated = (req, res, next) => {
 };
 
 
-// Serve assets
-app.use('/assets', express.static('assets'));
+// Serve assets (project root `assets/` directory)
+app.use('/assets', express.static(path.join(__dirname, '..', 'assets')));
 app.get("/style/main.css", function(req, res){
     res.sendFile(__dirname + "/style/main.css");
 })
@@ -278,6 +279,11 @@ app.get('/income', isAuthenticated, async (req, res) => {
         pageData.page = page;
         pageData.selectedMonthLabel = `${monthNames[target.getMonth()]} ${targetYear}`;
 
+        // Build budgetMMYY string for queries (MMYYYY)
+        const mm = String(targetMonth).padStart(2, '0');
+        const yyyy = String(targetYear);
+        const budgetMMYY = `${mm}${yyyy}`; // e.g., '122025'
+
         // Fetch income transactions for the selected month
         const [transactions] = await db.query(
             `SELECT date, amount, description FROM transactions 
@@ -313,6 +319,19 @@ app.get('/income', isAuthenticated, async (req, res) => {
 
         pageData.thisMonthBudget = monthlyBudgetResult[0]?.monthlyBudget || 0;
 
+        // Calculate this month's expenses (for selected month) so we can show remaining budget
+        const [monthlyExpensesResult] = await db.query(
+            `SELECT COALESCE(SUM(amount), 0) as monthlyExpenses
+             FROM transactions 
+             WHERE userid = ? AND type = 'expenses' 
+             AND MONTH(date) = ? AND YEAR(date) = ?`,
+            [req.session.userId, targetMonth, targetYear]
+        );
+        pageData.thisMonthExpenses = monthlyExpensesResult[0]?.monthlyExpenses || 0;
+
+        // Remaining budget for the selected month (budget - expenses)
+        pageData.thisMonthRemaining = (pageData.thisMonthBudget - pageData.thisMonthExpenses) || 0;
+
         // Calculate this month's income (for selected month)
         const [monthlyResult] = await db.query(
             `SELECT COALESCE(SUM(amount), 0) as monthlyIncome
@@ -322,6 +341,9 @@ app.get('/income', isAuthenticated, async (req, res) => {
             [req.session.userId, targetMonth, targetYear]
         );
         pageData.thisMonthIncome = monthlyResult[0]?.monthlyIncome || 0;
+
+        // Remaining income for the selected month (income - expenses)
+        pageData.thisMonthIncomeRemaining = (pageData.thisMonthIncome - pageData.thisMonthExpenses) || 0;
 
     } catch (err) {
         console.error("Error fetching income transactions:", err);
@@ -459,6 +481,9 @@ app.get('/expenses', isAuthenticated, async (req, res) => {
 
         pageData.thisMonthIncome = monthlyIncomeResult[0]?.monthlyIncome || 0;
 
+        // Remaining income for the selected month (income - expenses)
+        pageData.thisMonthIncomeRemaining = (pageData.thisMonthIncome - pageData.thisMonthExpenses) || 0;
+
         // Fetch totals per category for the selected month (gastos by category)
         const [byCategoryRows] = await db.query(
             `SELECT category AS categoryId, COALESCE(SUM(amount),0) AS total
@@ -475,15 +500,41 @@ app.get('/expenses', isAuthenticated, async (req, res) => {
         const byCategoryMap = {};
         for (const r of byCategoryRows) {
             // Use string keys to be safe when accessed from EJS (data.byCategory['2'])
-            byCategoryMap[String(r.categoryId)] = { totalexpense: r.total };
+            byCategoryMap[String(r.categoryId)] = { totalexpense: r.total, remainingBudget: 0 };
         }
         pageData.byCategory = byCategoryMap; // e.g. data.byCategory['2'].totalexpense
 
-        // Calculate total monthly budget from `budget` table for selected month
-        const mm = String(targetMonth).padStart(2, '0');
-        const yyyy = String(targetYear);
-        const budgetMMYY = `${mm}${yyyy}`; // e.g., '122025'
+        // Build budgetMMYY (MMYYYY) for the selected month so budget queries use the correct key
+        const mmForBudgetKey = String(targetMonth).padStart(2, '0');
+        const yyyyForBudgetKey = String(targetYear);
+        const budgetMMYY = `${mmForBudgetKey}${yyyyForBudgetKey}`; // e.g., '122025'
 
+        // Fetch per-category budgets for the selected month and compute remaining per category
+        const [budgetByCategoryRows] = await db.query(
+            `SELECT categoryId, COALESCE(amount,0) AS amount
+             FROM budget
+             WHERE userId = ? AND budgetMMYY = ?`,
+            [req.session.userId, budgetMMYY]
+        );
+
+        const budgetMap = {};
+        for (const b of budgetByCategoryRows) {
+            budgetMap[String(b.categoryId)] = Number(b.amount) || 0;
+            // ensure key exists in byCategory map
+            if (!pageData.byCategory[String(b.categoryId)]) {
+                pageData.byCategory[String(b.categoryId)] = { totalexpense: 0, remainingBudget: 0 };
+            }
+            // compute remaining (budget - expense)
+            pageData.byCategory[String(b.categoryId)].remainingBudget = (Number(b.amount) - (pageData.byCategory[String(b.categoryId)].totalexpense || 0)) || 0;
+        }
+
+        // Also ensure common category keys exist so the view doesn't break (1,2,3,9)
+        const ensureCats = ['1','2','3','9'];
+        for (const cid of ensureCats) {
+            if (!pageData.byCategory[cid]) pageData.byCategory[cid] = { totalexpense: 0, remainingBudget: (budgetMap[cid] || 0) };
+            else if (pageData.byCategory[cid].remainingBudget === undefined) pageData.byCategory[cid].remainingBudget = (budgetMap[cid] || 0) - (pageData.byCategory[cid].totalexpense || 0);
+        }
+        // Calculate total monthly budget from `budget` table for selected month
         const [monthlyBudgetResult] = await db.query(
             `SELECT COALESCE(SUM(amount), 0) as monthlyBudget
              FROM budget
@@ -543,13 +594,29 @@ app.post('/budget', isAuthenticated, async (req, res) => {
 
 // Logout route
 app.get('/logout', (req, res) => {
-    req.session.destroy((err) => {
-        if (err) {
-            console.error("Error destroying session:", err);
-            return res.status(500).send('Error logging out');
+    try {
+        // If using express-session (has destroy), call it.
+        if (req.session && typeof req.session.destroy === 'function') {
+            req.session.destroy((err) => {
+                if (err) {
+                    console.error("Error destroying session:", err);
+                    return res.status(500).send('Error logging out');
+                }
+                // clear cookie (session name defined in cookieSession middleware)
+                res.clearCookie('session');
+                return res.redirect('/login');
+            });
+            return;
         }
-        res.redirect('/login');
-    });
+
+        // cookie-session: assign null to clear stored session
+        req.session = null;
+        res.clearCookie('session');
+        return res.redirect('/login');
+    } catch (err) {
+        console.error('Error during logout:', err);
+        return res.redirect('/login');
+    }
 });
 
 // API: total expenses per month for a year (bar chart data)

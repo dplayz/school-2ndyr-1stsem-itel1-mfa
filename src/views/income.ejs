@@ -5,11 +5,19 @@
         <div class="col-12 col-lg-6 p-4 bg-success text-white border rounded">
             <b class="fs-4">Current Budget</b>
             <pre class="fs-4">₱<%= parseFloat(data.thisMonthBudget).toLocaleString('en-US',{minimumFractionDigits: 2, maximumFractionDigits:2}) %></pre>
+            <div class="mt-2">
+                <small class="text-white-50">Remaining for month:</small>
+                <div class="fw-semibold">₱<%= parseFloat(data.thisMonthRemaining || 0).toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2}) %></div>
+            </div>
         </div>
         <div class="col-12 col-lg-6 bg-success text-white border rounded">
         <div class="p-4">
             <b class="fs-4">This month's income:</b>
             <pre class="fs-4">₱<%= parseFloat(data.thisMonthIncome).toLocaleString('en-US',{minimumFractionDigits: 2, maximumFractionDigits:2}) %></pre>
+            <div class="mt-2">
+                <small class="text-white-50">Remaining income after expenses:</small>
+                <div class="fw-semibold">₱<%= parseFloat(data.thisMonthIncomeRemaining || 0).toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2}) %></div>
+            </div>
         </div>
         </div>
     </div>
