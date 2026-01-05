@@ -259,6 +259,156 @@ app.post('/income', isAuthenticated, async (req, res) => {
     }
 });
 
+// POST route to add new expense
+app.post('/expenses', isAuthenticated, async (req, res) => {
+    const { amount, source, category } = req.body;
+    const userId = req.session.userId;
+    
+    try {
+        await db.query(
+            `INSERT INTO transactions (userid, date, amount, type, description, category) 
+             VALUES (?, NOW(), ?, 'expenses', ?, ?)`,
+            [userId, amount, source, category]
+        );
+        
+        res.redirect('/expenses');
+    } catch (err) {
+        console.error("Error inserting expense:", err);
+        res.redirect('/expenses');
+    }
+});
+
+// Expenses page (protected - requires authentication)
+app.get('/expenses', isAuthenticated, async (req, res) => {
+    const pageTitle = 'Expenses';
+    const pageData = {
+        username: req.session.username,
+        transactions: [],
+        currentBudget: 0,
+        thisMonthIncome: 0
+    };
+    
+    try {
+        // Fetch all expense transactions for the logged-in user (include category)
+        const [transactions] = await db.query(
+            `SELECT date, amount, description, category, type AS actionType FROM transactions 
+             WHERE userid = ? AND type = 'expenses' 
+             ORDER BY date DESC`,
+            [req.session.userId]
+        );
+        
+        pageData.transactions = transactions;
+        
+        // Calculate current budget (total income - total expenses)
+        const [budgetResult] = await db.query(
+            `SELECT 
+                COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END), 0) as budget
+             FROM transactions 
+             WHERE userid = ?`,
+            [req.session.userId]
+        );
+
+        pageData.currentBudget = budgetResult[0]?.budget || 0;
+
+        // Calculate this month's expenses
+        const [monthlyExpensesResult] = await db.query(
+            `SELECT COALESCE(SUM(amount), 0) as monthlyExpenses
+             FROM transactions 
+             WHERE userid = ? AND type = 'expenses' 
+             AND MONTH(date) = MONTH(NOW()) 
+             AND YEAR(date) = YEAR(NOW())`,
+            [req.session.userId]
+        );
+
+        pageData.thisMonthExpenses = monthlyExpensesResult[0]?.monthlyExpenses || 0;
+
+        // Calculate this month's income
+        const [monthlyIncomeResult] = await db.query(
+            `SELECT COALESCE(SUM(amount), 0) as monthlyIncome
+             FROM transactions 
+             WHERE userid = ? AND type = 'income' 
+             AND MONTH(date) = MONTH(NOW()) 
+             AND YEAR(date) = YEAR(NOW())`,
+            [req.session.userId]
+        );
+
+        pageData.thisMonthIncome = monthlyIncomeResult[0]?.monthlyIncome || 0;
+
+                // Fetch totals per category for the current month (gastos by category)
+                const [byCategoryRows] = await db.query(
+                        `SELECT category AS categoryId, COALESCE(SUM(amount),0) AS total
+                         FROM transactions
+                         WHERE userid = ? AND type = 'expenses'
+                             AND MONTH(date) = MONTH(NOW()) AND YEAR(date) = YEAR(NOW())
+                         GROUP BY category
+                         ORDER BY total DESC`,
+                        [req.session.userId]
+                );
+
+                // Keep the array for table rendering and also build a map keyed by category id
+                pageData.byCategoryList = byCategoryRows; // Array of { categoryId, total }
+                const byCategoryMap = {};
+                for (const r of byCategoryRows) {
+                    // Use string keys to be safe when accessed from EJS (data.byCategory['2'])
+                    byCategoryMap[String(r.categoryId)] = { totalexpense: r.total };
+                }
+                pageData.byCategory = byCategoryMap; // e.g. data.byCategory['2'].totalexpense
+
+        // Calculate total monthly budget from `budget` table for current month
+        const now = new Date();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const yyyy = String(now.getFullYear());
+        const budgetMMYY = `${mm}${yyyy}`; // e.g., '122025'
+
+        const [monthlyBudgetResult] = await db.query(
+            `SELECT COALESCE(SUM(amount), 0) as monthlyBudget
+             FROM budget
+             WHERE userId = ? AND budgetMMYY = ?`,
+            [req.session.userId, budgetMMYY]
+        );
+
+        pageData.totalMonthlyBudget = monthlyBudgetResult[0]?.monthlyBudget || 0;
+        
+    } catch (err) {
+        console.error("Error fetching transactions:", err);
+    }
+    
+    renderPage(req, res, 'expenses', pageTitle, pageData);
+});
+
+// POST route to set/update budget for a category for the current month
+app.post('/budget', isAuthenticated, async (req, res) => {
+    try {
+        const userId = req.session.userId;
+        let { category, amount, description } = req.body;
+
+        // Basic validation / sanitization
+        category = parseInt(category, 10) || 0;
+        amount = parseFloat(amount) || 0;
+        description = description ? description.toString().slice(0, 255) : null;
+
+        // Build budgetMMYY as MMYYYY (6 chars)
+        const now = new Date();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const yyyy = String(now.getFullYear());
+        const budgetMMYY = `${mm}${yyyy}`;
+
+        // Upsert into budget table
+        await db.query(
+            `INSERT INTO budget (userId, budgetMMYY, categoryId, amount, description)
+             VALUES (?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE amount = VALUES(amount), description = VALUES(description)`,
+            [userId, budgetMMYY, category, amount, description]
+        );
+
+        return res.redirect('/expenses');
+    } catch (err) {
+        console.error('Error setting budget:', err);
+        return res.redirect('/expenses');
+    }
+});
+
+
 
 // Logout route
 app.get('/logout', (req, res) => {

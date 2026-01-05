@@ -1,0 +1,172 @@
+<div class="p-2 mx-auto">
+    <h1 class="p-2">Expenses</h1>
+    <div class="container-xxl w-100 m-2 mx-auto p-2">
+    <div class="row">
+        <div class="col-12 col-lg-6">
+            <div class="col-12 bg-success text-white border rounded">
+                <div class="p-4">
+                    <b class="fs-3">This Month:</b><br>
+                    <span class="fs-4">₱<%= parseFloat(data.totalMonthlyBudget || 0).toFixed(2) %></span> /
+                    <span class="fs-4">₱<%= parseFloat(data.thisMonthExpenses || 0).toFixed(2) %></span>
+                </div>
+            </div>
+            <div class="col-12 bg-success text-white border rounded">
+                <div class="p-4">
+                    <b class="fs-3">This month's income</b>
+                    <pre class="fs-4">₱<%= parseFloat(data.thisMonthIncome || 0).toFixed(2) %></pre>
+                </div>
+            </div>
+        </div>
+        <div class="row col-12 col-lg-6">
+            <div class="col-6 col-lg-6 bg-success text-white border rounded">
+                <div class="p-3">
+                    <b class="fs-3">Groceries and Needs</b>
+                    <pre class="fs-4">₱<%= parseFloat(((data.byCategory && data.byCategory['1'] && data.byCategory['1'].totalexpense) || 0)).toFixed(2) %></pre>
+                </div>
+            </div>
+            <div class="col-6 col-lg-6 bg-success text-white border rounded">
+                <div class="p-3">
+                    <b class="fs-3">Bills and Obligations</b>
+                    <pre class="fs-4">₱<%= parseFloat(((data.byCategory && data.byCategory['2'] && data.byCategory['2'].totalexpense) || 0)).toFixed(2) %></pre>
+                </div>
+            </div>
+            <div class="col-6 col-lg-6 bg-success text-white border rounded">
+                <div class="p-3">
+                    <b class="fs-3">Entertainment and Leisure</b>
+                    <pre class="fs-4">₱<%= parseFloat(((data.byCategory && data.byCategory['3'] && data.byCategory['3'].totalexpense) || 0)).toFixed(2) %></pre>
+                </div>
+            </div>
+            <div class="col-6 col-lg-6 bg-success text-white border rounded">
+                <div class="p-3">
+                    <b class="fs-3">Others</b>
+                    <pre class="fs-4">₱<%= parseFloat(((data.byCategory && data.byCategory['4'] && data.byCategory['4'].totalexpense) || 0)).toFixed(2) %></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid p-2">
+        <button type="button" class="btn btn-primary container-fluid" data-bs-toggle="modal" data-bs-target="#addExpenseModal">
+        Add new expense
+        </button>
+    </div>
+
+    <div class="container-fluid p-2">
+        <button type="button" class="btn btn-primary container-fluid" data-bs-toggle="modal" data-bs-target="#setBudgetModal">
+        Set budget
+        </button>
+    </div>
+
+    <!-- Set Budget Modal -->
+    <div class="modal fade" id="setBudgetModal" tabindex="-1" aria-labelledby="setBudgetModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="/budget" method="POST" id="budgetForm">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="setBudgetModalLabel">Set Monthly Budget</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="budgetCategory" class="form-label">Category</label>
+                        <select class="form-select form-select-sm" id="budgetCategory" name="category" required>
+                            <option selected disabled value="">Select category</option>
+                            <option value="1">Groceries and Needs</option>
+                            <option value="2">Bills and Obligations</option>
+                            <option value="3">Entertainment and Leisure</option>
+                            <option value="9">Others</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="budgetAmount" class="form-label">Budget Amount</label>
+                        <input type="number" class="form-control" id="budgetAmount" name="amount" placeholder="e.g., 5000" step="0.01" min="0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="budgetDescription" class="form-label">Description (optional)</label>
+                        <input type="text" class="form-control" id="budgetDescription" name="description" placeholder="e.g., Groceries for December">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Budget</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    </div>
+
+    <div class="modal fade" id="addExpenseModal" tabindex="-1" aria-labelledby="addExpenseModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="/expenses" method="POST" id="expenseForm">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="addExpenseModalLabel">Add New Expense</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="expenseAmount" class="form-label">Expense Amount</label>
+                        <input type="number" class="form-control" id="expenseAmount" name="amount" placeholder="e.g., 670" step="0.01" min="0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="expenseCategory" class="form-label">Expense Category</label>
+                        <select class="form-select form-select-sm" name="category" required>
+                            <option selected disabled>Select category</option>
+                            <option value="1">Groceries and Needs</option>
+                            <option value="2">Bills and Obligations</option>
+                            <option value="3">Entertainment and Leisure</option>
+                            <option value="9">Others</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="expenseDescription" class="form-label">Expense Description</label>
+                        <input type="text" class="form-control" id="expenseDescription" name="source" placeholder="e.g., Groceries" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Expense</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    </div>
+
+    <div class="p-2">
+        <h2>Expense History</h2>
+        <table class="table">
+            <thead>
+                <tr>
+                <th scope="col">Date</th>
+                <th scope="col">Amount</th>
+                <th scope="col">Category</th>
+                <th scope="col">Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (data.transactions && data.transactions.length > 0) { %>
+                    <% data.transactions.forEach(transaction => { %> 
+                        <tr>
+                            <td><%= new Date(transaction.date).toLocaleDateString() %></td>
+                            <td>₱<%= transaction.amount %></td>
+                            <% if (transaction.category == 1) { %>
+                                <td>Groceries and Needs</td>
+                            <% } else if (transaction.category == 2) { %>
+                                <td>Bills and Obligations</td>
+                            <% } else if (transaction.category == 3) { %>
+                                <td>Entertainment and Leisure</td>
+                            <% } else { %>
+                                <td>Others</td>
+                            <% } %>
+                            <td><%= transaction.description %></td>
+                        </tr>
+                    <% }); %>
+                <% } else { %>
+                    <tr>
+                        <td colspan="4" class="text-center text-muted">No expenses recorded yet</td>
+                    </tr>
+                <% } %>
+            </tbody>
+        </table>
+    </div>
+</div>
